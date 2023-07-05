@@ -1,3 +1,6 @@
+#Forked to have an working copy of the script
+(all creds to: ronivay/XenOrchestraInstallerUpdater )
+
 # Xen Orchestra Installer / Updater
 
 [![](https://img.shields.io/endpoint?url=https://xo-build-status.yawn.fi/builds/debian/status.json)](https://xo-build-status.yawn.fi/builds/debian/details.html) [![](https://img.shields.io/endpoint?url=https://xo-build-status.yawn.fi/builds/centos/status.json)](https://xo-build-status.yawn.fi/builds/centos/details.html) [![](https://img.shields.io/endpoint?url=https://xo-build-status.yawn.fi/builds/ubuntu/status.json)](https://xo-build-status.yawn.fi/builds/ubuntu/details.html) [![](https://img.shields.io/endpoint?url=https://xo-build-status.yawn.fi/builds/almalinux/status.json)](https://xo-build-status.yawn.fi/builds/almalinux/details.html)
