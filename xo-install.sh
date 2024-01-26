@@ -49,6 +49,7 @@ GENSUDO="${GENSUDO:-"false"}"
 INSTALL_REPOS="${INSTALL_REPOS:-"true"}"
 SYSLOG_TARGET="${SYSLOG_TARGET:-""}"
 YARN_CACHE_CLEANUP="${YARN_CACHE_CLEANUP:-"false"}"
+YARN_NETWORK_TIMEOUT="${YARN_NETWORK_TIMEOUT:-"300000"}"
 
 # set variables not changeable in configfile
 TIME=$(date +%Y%m%d%H%M)
@@ -218,6 +219,9 @@ function InstallDependenciesRPM {
         # only install nodejs repo if user allows it to be installed
         if [[ "$INSTALL_REPOS" == "true" ]]; then
             runcmd "curl -s -L https://rpm.nodesource.com/setup_${NODEVERSION}.x | bash -"
+            # enable these once https://github.com/ronivay/XenOrchestraInstallerUpdater/issues/200 is resolved
+            #runcmd "yum install https://rpm.nodesource.com/pub_${NODEVERSION}.x/nodistro/repo/nodesource-release-nodistro-1.noarch.rpm -y"
+            #runcmd "yum install nodejs -y --setopt=nodesource-nodejs.module_hotfixes=1"
         fi
 
         runcmd "yum install -y nodejs"
@@ -322,7 +326,10 @@ function InstallDependenciesDeb {
 
         # only install nodejs repo if user allows it to be installed
         if [[ "$INSTALL_REPOS" == "true" ]]; then
-            runcmd "curl -sL https://deb.nodesource.com/setup_${NODEVERSION}.x | bash -"
+            runcmd "mkdir -p /usr/share/keyrings"
+            runcmd "curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --batch --yes --dearmor -o /usr/share/keyrings/nodesource.gpg"
+            runcmd "echo \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODEVERSION}.x nodistro main\" > /etc/apt/sources.list.d/nodesource.list"
+            runcmd "apt-get update"
         fi
 
         runcmd "apt-get install -y nodejs"
@@ -371,6 +378,21 @@ function UpdateNodeYarn {
         return 0
     fi
 
+    if [[ "$INSTALL_REPOS" == "true" ]]; then
+        printinfo "Installing nodesource repository"
+        # enable these once https://github.com/ronivay/XenOrchestraInstallerUpdater/issues/200 is resolved
+        #if [ "$PKG_FORMAT" == "rpm" ]; then
+        #    runcmd "yum install https://rpm.nodesource.com/pub_${NODEVERSION}.x/nodistro/repo/nodesource-release-nodistro-1.noarch.rpm -y"
+        #    runcmd "yum clean all"
+        #fi
+        if [ "$PKG_FORMAT" == "deb" ]; then
+            runcmd "mkdir -p /usr/share/keyrings"
+            runcmd "curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --batch --yes --dearmor -o /usr/share/keyrings/nodesource.gpg"
+            runcmd "echo \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODEVERSION}.x nodistro main\" > /etc/apt/sources.list.d/nodesource.list"
+            runcmd "apt-get update"
+        fi
+    fi
+
     echo
     printinfo "Checking current node.js version"
     local NODEV=$(runcmd_stdout "node -v 2>/dev/null| grep -Eo '[0-9.]+' | cut -d'.' -f1")
@@ -382,9 +404,10 @@ function UpdateNodeYarn {
             echo
             printprog "node.js version is $NODEV, upgrading to ${NODEVERSION}.x"
 
+            # remove following two lines once https://github.com/ronivay/XenOrchestraInstallerUpdater/issues/200 is resolved
             runcmd "curl -sL https://rpm.nodesource.com/setup_${NODEVERSION}.x | bash -"
-
             runcmd "yum clean all"
+
             runcmd "yum install -y nodejs"
             printok "node.js version is $NODEV, upgrading to ${NODEVERSION}.x"
         else
@@ -404,8 +427,6 @@ function UpdateNodeYarn {
         if [[ -n "$NODEV" ]] && [[ "$NODEV" -lt "${NODEVERSION}" ]] && [[ "$INSTALL_REPOS" == "true" ]]; then
             echo
             printprog "node.js version is $NODEV, upgrading to ${NODEVERSION}.x"
-
-            runcmd "curl -sL https://deb.nodesource.com/setup_${NODEVERSION}.x | bash -"
 
             runcmd "apt-get install -y nodejs"
             printok "node.js version is $NODEV, upgrading to ${NODEVERSION}.x"
@@ -687,7 +708,7 @@ function InstallXO {
     printinfo "xo-server and xo-web build takes quite a while. Grab a cup of coffee and lay back"
     echo
     printprog "Running installation"
-    runcmd "cd $INSTALLDIR/xo-builds/xen-orchestra-$TIME && yarn && yarn build"
+    runcmd "cd $INSTALLDIR/xo-builds/xen-orchestra-$TIME && yarn --network-timeout ${YARN_NETWORK_TIMEOUT} && yarn --network-timeout ${YARN_NETWORK_TIMEOUT} build"
     printok "Running installation"
 
     # Install plugins (takes care of 3rd party plugins as well)
@@ -801,7 +822,7 @@ function InstallXO {
             printinfo "Changing default mountsDir in xo-server configuration file"
             runcmd "sed -i \"s%#mountsDir.*%mountsDir = '$INSTALLDIR/mounts'%\" $INSTALLDIR/xo-builds/xen-orchestra-$TIME/packages/xo-server/sample.config.toml"
             runcmd "mkdir -p $INSTALLDIR/mounts"
-            runcmd "chown -R $XOUSER:$XOUSER $INSTALLDIR/mounts"
+            runcmd "chown $XOUSER:$XOUSER $INSTALLDIR/mounts"
         fi
 
         if [[ -n "$SYSLOG_TARGET" ]]; then
@@ -970,7 +991,7 @@ function InstallXOProxy {
     printinfo "xo-proxy build takes quite a while. Grab a cup of coffee and lay back"
     echo
     printprog "Running installation"
-    runcmd "cd $INSTALLDIR/xo-builds/xen-orchestra-$TIME && yarn && yarn build"
+    runcmd "cd $INSTALLDIR/xo-builds/xen-orchestra-$TIME && yarn --network-timeout ${YARN_NETWORK_TIMEOUT} && yarn --network-timeout ${YARN_NETWORK_TIMEOUT} build"
     printok "Running installation"
 
     # shutdown possibly running xo-server
